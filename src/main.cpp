@@ -34,62 +34,55 @@ unsigned long joy_last_ms_left  = 0;
 unsigned long joy_last_ms_right = 0;
 unsigned long joy_last_ms_enter = 0;
 
+uint8_t joy_state_up    = HIGH;
+uint8_t joy_state_down  = HIGH;
+uint8_t joy_state_left  = HIGH;
+uint8_t joy_state_right = HIGH;
+uint8_t joy_state_enter = HIGH;
+
 MCP_CAN CAN(PIN_CAN_CS);
+
+void handleButton(uint8_t pin, uint8_t &state, unsigned long &last_ms, unsigned long current_time_ms, void (*action)())
+{
+  uint8_t reading = digitalRead(pin);
+  if (reading != state && current_time_ms - last_ms >= DEBOUNCE_MS)
+  {
+    last_ms = current_time_ms;
+    state = reading;
+    if (reading == LOW)
+      action();
+  }
+}
 
 void handleJoystick(unsigned long current_time_ms)
 {
-  if (digitalRead(PIN_JOY_UP) == LOW)
-  {
-    if (current_time_ms - joy_last_ms_up >= DEBOUNCE_MS)
-    {
-      joy_last_ms_up = current_time_ms;
-      eps_speed = (eps_speed + 1000 > MAX_EPS_SPEED) ? MAX_EPS_SPEED : eps_speed + 1000;
-      Serial.print("Up: speed=");
-      Serial.println(eps_speed);
-    }
-  }
+  handleButton(PIN_JOY_UP, joy_state_up, joy_last_ms_up, current_time_ms, []() {
+    eps_speed = (eps_speed + 1000 > MAX_EPS_SPEED) ? MAX_EPS_SPEED : eps_speed + 1000;
+    Serial.print("Up: speed=");
+    Serial.println(eps_speed);
+  });
 
-  if (digitalRead(PIN_JOY_DOWN) == LOW)
-  {
-    if (current_time_ms - joy_last_ms_down >= DEBOUNCE_MS)
-    {
-      joy_last_ms_down = current_time_ms;
-      eps_speed = (eps_speed < 1000) ? 0 : eps_speed - 1000;
-      Serial.print("Down: speed=");
-      Serial.println(eps_speed);
-    }
-  }
+  handleButton(PIN_JOY_DOWN, joy_state_down, joy_last_ms_down, current_time_ms, []() {
+    eps_speed = (eps_speed < 1000) ? 0 : eps_speed - 1000;
+    Serial.print("Down: speed=");
+    Serial.println(eps_speed);
+  });
 
-  if (digitalRead(PIN_JOY_LEFT) == LOW)
-  {
-    if (current_time_ms - joy_last_ms_left >= DEBOUNCE_MS)
-    {
-      joy_last_ms_left = current_time_ms;
-      eps_speed = 0;
-      Serial.print("Left: speed=0\r\n");
-    }
-  }
+  handleButton(PIN_JOY_LEFT, joy_state_left, joy_last_ms_left, current_time_ms, []() {
+    eps_speed = 0;
+    Serial.print("Left: speed=0\r\n");
+  });
 
-  if (digitalRead(PIN_JOY_RIGHT) == LOW)
-  {
-    if (current_time_ms - joy_last_ms_right >= DEBOUNCE_MS)
-    {
-      joy_last_ms_right = current_time_ms;
-      eps_speed = MAX_EPS_SPEED;
-      Serial.print("Right: speed=6000\r\n");
-    }
-  }
+  handleButton(PIN_JOY_RIGHT, joy_state_right, joy_last_ms_right, current_time_ms, []() {
+    eps_speed = MAX_EPS_SPEED;
+    Serial.print("Right: speed=6000\r\n");
+  });
 
-  if (digitalRead(PIN_JOY_ENTER) == LOW)
-  {
-    if (current_time_ms - joy_last_ms_enter >= DEBOUNCE_MS)
-    {
-      joy_last_ms_enter = current_time_ms;
-      EEPROM.put(EEPROM_SPEED_ADDR, eps_speed);
-      Serial.print("Enter: saved speed=");
-      Serial.println(eps_speed);
-    }
-  }
+  handleButton(PIN_JOY_ENTER, joy_state_enter, joy_last_ms_enter, current_time_ms, []() {
+    EEPROM.put(EEPROM_SPEED_ADDR, eps_speed);
+    Serial.print("Enter: saved speed=");
+    Serial.println(eps_speed);
+  });
 }
 
 void setup()
